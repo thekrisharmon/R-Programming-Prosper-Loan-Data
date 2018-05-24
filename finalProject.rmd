@@ -1,0 +1,426 @@
+Exploratory Data Analysis - Prosper Loans (By Kris Harmon)
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+library(ggplot2)
+library(gridExtra)
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+loanData = read.csv('prosperLoanData.csv', sep = ',')
+```
+
+For this project, we are analyzing the Prosper Loan Data. Prosper is a company that basically matches borrowers with investors. Investors can determine the level / percentage of investment into a loan as they see fit. It contains 113,937 observations of 81 variables. The first thing I want to do is familiarize myself with the data to see where I might want to begin my analysis. I'll first run code to see what the structure of the data is.
+
+# Univariate Plots and Analysis Section
+
+Please note that I prefer to iterate my analysis as I go along plotting data via various visualizations. I believe it flows better and helps the reviewer better understand the analysis and reflection occurring at the time the visualizations are being run.
+
+```{r echo=FALSE, Univariate_Plots}
+str(loanData)
+```
+
+Now, I want to see a summary of the data to see if anything stands out to me.
+
+```{r echo=FALSE}
+summary(loanData)
+```
+
+At this point, there are some variables that I'd like to chart out and see what story they may tell.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x = BorrowerRate, data = loanData,
+      xlab = 'Borrower Interest Rate',
+      ylab = 'Number of Borrowers',
+      color = I('black'), fill = I('#099DD9'))
+```
+
+I see that the interest rates aren't converted to percentages, so I'll need to account for that in the chart development. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x = (BorrowerRate*10), data = loanData, 
+      xlab = 'Borrower Interest Rate',
+      ylab = 'Number of Borrowers',
+      color = I('black'), fill = I('#099DD9'))
+```
+
+Now, I can easily see that we have the majority of interest rates sitting between 1 and 2 percent. I am curious if I adjust down the binwidth if it'll tell a different storry or uncover some oddities in the data.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x = (BorrowerRate*10), data = loanData, binwidth = 0.02, 
+      xlab = 'Borrower Interest Rate',
+      ylab = 'Number of Borrowers',
+      color = I('black'), fill = I('#099DD9'))
+```
+
+While I still believe the majority sit between 1 and 2 percent, There's a spike just above the 3 percent mark. I want to drill further down into that area to see if I can get a better understanding of things.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x = (BorrowerRate*10), data = loanData, binwidth = 0.01, xlim = c(3.15, 3.2),
+      xlab = 'Borrower Interest Rate',
+      ylab = 'Number of Borrowers',
+      color = I('black'), fill = I('#099DD9'))
+```
+
+Now that I have drilled down, I can see that it's a range of 3.175 to 3.185 percent that causes the spike. As low as the surrounding values are, however, that explains to me why the median isn't skewed to the right. Let's summarize the rates just to double-check myself here.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+summary((loanData$BorrowerRate)*10)
+```
+
+So this confirms my thinking. The median and mean are both within the 1 to 2 percent range. The 3rd quartile doesn't even get into the range of this oddity "spike" if you will. With that said, I believe I'm at a dead end on this pursuit regarding interest rate analysis.
+
+At this point, I want to turn my attention towards credit scores. I am curious what the ranges (upper and lower) are for Prosper's customers. I will summarize the ranges and then plot them to see if anything stands out to me.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+summary(loanData$CreditScoreRangeLower)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+summary(loanData$CreditScoreRangeUpper)
+```
+
+I see there's a 19-point spread between the average upper and lower range (as an example). Based on personal experience, that seems fairly normal. I'll proceed to charting them out to see how we fair quantity-wise.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Source: https://stackoverflow.com/questions/8387194/create-boxplots-with-transparent-colour-ggplot2
+ggplot() +
+  geom_histogram(aes(x=loanData$CreditScoreRangeLower), 
+                 color = I('black'), fill = I('Red')) +
+  geom_histogram(aes(x=loanData$CreditScoreRangeUpper), 
+                 color = I('black'), fill = I('Grey'), alpha = 0.8) + #Adding alpha element to let me see through.
+  xlim(425, 900) +
+  xlab("Credit Score Range (Lower = Red | Upper = Grey)")
+```
+
+This looks to be a fairly normal distribution of both variables (e.g. - Upper and Lower Credit Ranges). I notice two areas that have neither variable in them. This indicates to me there's either a lack of data in the fields or simply that none of their customers' credit scores fall in this bin. For grins, I will run this again with a much smaller x-axis range.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Source: https://stackoverflow.com/questions/8387194/create-boxplots-with-transparent-colour-ggplot2
+p1 = ggplot() +
+  geom_histogram(binwidth=.5, aes(x=loanData$CreditScoreRangeLower), 
+                 color = I('black'), fill = I('Red')) +
+  geom_histogram(binwidth=.5, aes(x=loanData$CreditScoreRangeUpper), 
+                 color = I('black'), fill = I('Grey'), alpha = 0.8) +
+  xlim(570, 615) +
+  xlab("C-Score Range (Lower = Red | Upper = Grey)")
+
+p2 = ggplot() +
+  geom_histogram(binwidth=.5, aes(x=loanData$CreditScoreRangeLower), 
+                 color = I('black'), fill = I('Red')) +
+  geom_histogram(binwidth=.5, aes(x=loanData$CreditScoreRangeUpper), 
+                 color = I('black'), fill = I('Grey'), alpha = 0.8) +
+  xlim(750, 800) +
+  xlab("C-Score Range (Lower = Red | Upper = Grey)")
+
+grid.arrange(p1,p2, nrow=1)
+```
+
+Now that I have seen this at a more granular level, I believe the data is indicating a lack of values in the blank spaces identified. There's nothing additional I am electing to pursue here.
+
+Although we've already been turn there's a correlation between the interest rate we receive for a loan and the credit score we have, I want to confirm that by testing the respective correlations.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+cor.test(loanData$BorrowerRate, loanData$CreditScoreRangeLower, method = "pearson")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+cor.test(loanData$BorrowerRate, loanData$CreditScoreRangeUpper, method = "pearson")
+```
+
+Both show a good / strong p-value and confirm our assumptions. Now I'd like to plot out the Debt-To-Income Ratio. I am curious how this company looks at this field as it pertains to loan approvals. It may also show some interesting data when combined with other data later in this report.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x = DebtToIncomeRatio, data = loanData,color = I('black'), fill = I('#099DD9'))
+```
+
+This graph shows a ton of data points in a narrow bin range to me. I also notice it's positive-skewed with a very long tail. I'd like to perform a logarithm against this data field in an attempt to even out the distribution and get a better feel for where the ratio is spread across the loan customers.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x = log10(DebtToIncomeRatio*100), data = loanData,
+      xlab = "Debt to Income Ratio (After Log10)", color = I('black'), fill = I('#099DD9'))
+```
+
+This looks better. Please note that I also multiplied the variable by 100 to positively-adjust the data into a manner that makes more sense. The data shows me the vast majority of folks holding loans have a Debt-to-Income ratio between 1 - 2.  
+
+# Bivariate Plots and Analysis Section
+
+Please note that I prefer to iterate my analysis as I go along plotting data via various visualizations. I believe it flows better and helps the reviewer better understand the analysis and reflection occurring at the time the visualizations are being run.
+
+In this section, I plan to dive deeper into some relationships in the data that peaked my interest during (a) my initial review of the raw data and (b) the univariate plotting / analysis I performed. The following relationships will be explored:
+
+- Borrower's Interest Rate vs. Debt-to-Income Ratio
+- Original Loan Amount vs. Loan Terms
+- Income Range vs. Borrower's Interest Rate
+- Amount Delinquent vs. Credit Score Range (Lower)
+- Stated Monthly Income vs. Debt-to-Income Ratio
+- Stated Monthly Income vs. Original Loan Amount
+- Delinquencies over the past 7 Years vs. Credit Score Range (Lower)
+- Prosper Score vs. Loan Interest Rate
+
+```{r echo=FALSE, Bivariate_Plots, message=FALSE, warning=FALSE}
+ggplot(aes(x = BorrowerRate*10, y = DebtToIncomeRatio), data = loanData) + 
+  geom_jitter(alpha = 1/50) +
+  geom_smooth() +
+  xlim(0.5, 3.75)
+```
+
+I found this very interesting. I had to apply jitter to the data to clear the "fog" if you will. With that said, I think this chart it's a positive. By that I mean regardless of the interest rate (generally speaking), customers' debt-to-income ratio is fairly low. I threw in a geom_smooth layer to the scatter plot to help visualize where the focus of the data points are. I do want to zoom into the data to see if there's an additional story that's being told.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = BorrowerRate*10, y = DebtToIncomeRatio), data = loanData) + 
+  geom_jitter(alpha = 1/50) +
+  geom_smooth() +
+  xlim(0.5, 3.75) +
+  ylim(0, 1.5)
+```
+
+Now that I've put y-parameters on the visual, I can better see what's going on. We have a minor spike in the annual interest rate (north of 3 percent), but the majority of borrowers' rates are fairly steady in the 1-2 range. I have also noticed the debt-to-income ratio seems to peak at 0.5 with the majority between 0.25 - 0.35. Overall, this would give me confidence (as an investor) in the company's drive to provide loans to "healty" candidates (fiscally-speaking).
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+p3 = qplot(x = (BorrowerRate*10), data = loanData, binwidth = 0.02,
+      xlab = 'Borrower Interest Rate',
+      ylab = 'Number of Borrowers',
+      color = I('black'), fill = I('#099DD9'))
+
+p4 = ggplot(aes(x = BorrowerRate*10, y = DebtToIncomeRatio), data = loanData) + 
+  geom_jitter(alpha = 1/50) +
+  geom_smooth() +
+  xlim(0.5, 3.75) +
+  ylim(0, 1.5)
+
+grid.arrange(p3,p4, nrow=1)
+```
+
+I didn't want to let go of analyzing the borrower's interest rate. I was curious how a comparison of the scatter plot side-by-side a bar-chart of the interest rates would look and whether or not it confirms my thoughts on the subject. Although I'm not using the debt-to-income ratio on the bar chart, it does show a general similarity between the two charts.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+labelSalary <- c("$1-24,999", "$25,000-49,999", "$50,000-74,999",
+                "$75,000-99,999", "$100,000+", "Not employed", "$0", "Not displayed")
+
+
+qplot(x = IncomeRange, y = BorrowerRate, 
+      data = subset(loanData, !is.na(IncomeRange)), 
+      geom = 'boxplot') +
+  scale_x_discrete(limits=c(labelSalary)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+I used this chart to help me see what the data point ranges are within each salary range regarding interest rates. Given we know the lower income-to-debt ratio correlates to a lower (generally speaking) interest rate, This box plot chart confirms it for me. More specifically, we see the higher the salary range, the lower the interest rate is, which tells me they likely have a lower income-to-debt ratio as well.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = StatedMonthlyIncome, y = DebtToIncomeRatio, color = PercentFunded), data = loanData) + 
+#I need to clear out a lot of noise with this visual setup. Below are the alpha and jitter efforts.
+  geom_point(alpha = 1/100) +
+  geom_jitter(alpha = 1/100, position = position_jitter(h = 0)) +
+  xlim(0, 50000) +
+  coord_trans(y = 'sqrt')
+```
+
+While we're on the subject of income to debt ratio and incomes, I wanted to see if I can uncover how much of the loan was funded. My thought was to compare the stated income and income-to-debt ratio.. then color in the plots based on percentage funded.
+
+After removing the noise original shown in the chart, I can easily see the following:
+
+- the majority of loans funded occur below a 2.5 debt-to-income ratio and for folks who state their income is less than $20,000. 
+- some loans show partially-funded in the lower-tier stated income range
+
+While we can see there's an obvious discrepency between stated and income range, the bigger value (to me) is placed on the income-to-debt ratio as a means to determine confidence in proceeding with loan funding. With that said, I do want to further investigate the stated income and loan amounts.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Source: http://www.sthda.com/english/wiki/ggplot2-scatter-plots-quick-start-guide-r-software-and-data-visualization
+p7 = ggplot(aes(x = StatedMonthlyIncome, y = LoanOriginalAmount, color = PercentFunded), data = loanData) + 
+  geom_point(alpha = 1/10) +
+  geom_jitter(alpha = 1/60, position = position_jitter(h = 0)) +
+  xlim(0, 100000) +
+  ylim(1000, 27000) +
+#Adding a density layer to help me see where area's of concentration are occuring by income range
+  geom_density_2d(aes(fill = ..level..), geom="polygon") +
+  coord_trans(y = 'sqrt')
+
+p8 = ggplot(aes(x = StatedMonthlyIncome, y = LoanOriginalAmount, color = PercentFunded), data = loanData) + 
+  geom_point(alpha = 1/20) +
+  geom_jitter(alpha = 1/60, position = position_jitter(h = 0)) +
+  xlim(0, 20000) +
+  ylim(1000, 25000) +
+#Adding a density layer to help me see where area's of concentration are occuring by income range
+  geom_density_2d(aes(fill = ..level..)) +
+  coord_trans(y = 'sqrt')
+
+
+grid.arrange(p7,p8, nrow=1)
+```
+
+The two graphs above show the overall stated salary range (left) and then the focused salary ranges(right). I added in a density layer to these graphs to help me see where we're at level playing fields with the data. This shows to me what the loan amounts are compared to stated incomes. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+cor.test(loanData$Term, loanData$LoanOriginalAmount, method = "pearson")
+```
+
+This confirms for me there is in fact a correlation here. The bigger the loan amount, the longer the term is. This also can warrant an assumption that the motivation behind this is to keep the monthly payments manageable. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = AmountDelinquent, y = CreditScoreRangeLower), data = loanData) + geom_point(alpha = 1/40) +
+  ylim(500, 900) +
+  xlim(0, 25000) +
+  geom_jitter(alpha = 1/10, position = position_jitter(h = 0))
+```
+
+Being that delinquent accounts are obviously present with Prosper, I want to better understand what's going on there. My thinking led me to review if there's any pattern between the amount of delinquency vs. the borrower's credit score. I would figure the higher the credit score, the lower the probability that loans would be delinquent and/or have a higher amount that is past due. After trimming down the dollar amount to reasonable levels (aka removing the outlying "noise"), I was surprised to see that the mid-600 range up to 700 credit score borrowers have the widest-ranging amounts that are past due. As I recall in the previous chart breaking down income salary ranges, the bigger picture / explanation here would be the higher limit loan amounts folks are signing onto. Additionally, we know there's a correlation between credit scores and loan amounts, so that would explain what we're seeing here as well.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = DelinquenciesLast7Years, y = CreditScoreRangeLower), data = loanData) + geom_point(alpha = 1/40) +
+  ylim(500, 900) +
+  geom_jitter(alpha = 1/40, position = position_jitter(h = 0)) +
+  coord_trans(y = 'sqrt')
+```
+
+This visualization is interesting to me. Over the last 7 years, we can see how many times folks have missed a payment (based upon credit score). I know we've already talked about the correlation between loan amounts and credit scores, but I want to see these two charts side-by-side because I think there's some overlap here.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+p5 = ggplot(aes(x = AmountDelinquent, y = CreditScoreRangeLower), data = loanData) + geom_point(alpha = 1/40) +
+  ylim(500, 900) +
+  xlim(0, 25000) +
+  geom_jitter(alpha = 1/10, position = position_jitter(h = 0)) +
+  labs(x = "Amount Delinquent", y = "Credit Score (Lower Range)") +
+  ggtitle("Delinqency Amount vs. Credit Score")
+
+p6 = ggplot(aes(x = DelinquenciesLast7Years, y = CreditScoreRangeLower), data = loanData) + geom_point(alpha = 1/40) +
+  ylim(500, 900) +
+  geom_jitter(alpha = 1/40, position = position_jitter(h = 0)) +
+  coord_trans(y = 'sqrt') +
+  labs(x = "Number of Times Delinquent (Past 7 Years)", y = "Credit Score (Lower Range)") +
+  ggtitle("Delinqency Count vs. Credit Score")
+
+grid.arrange(p5,p6, nrow=1)
+```
+
+Interesting finding here. So we can say with confidence that the lower-mid tier 600 to 700 credit score range struggles the most in keeping their payments current. This is a red-flag to me because the loan amount correlates to the quantity of delinquencies. This tells me there's a higher probability of someone (in this credit range) defaulting on their loan.
+
+#Multivariate Plots and Analysis Section
+
+```{r echo=FALSE, Multivariate_Plots, message=FALSE, warning=FALSE}
+# Source: http://www.sthda.com/english/wiki/ggplot2-scatter-plots-quick-start-guide-r-software-and-data-visualization
+
+ggplot(aes(x = ProsperScore, y = BorrowerRate*10, color = IncomeRange), data = loanData) + 
+#I need to clear out some of the noise and also make the data points easier to see
+  geom_point(alpha = 1/30) +
+  geom_jitter(alpha = 1/30, position = position_jitter(h = 0)) +
+#Adding a density layer to help me see where area's of concentration are occuring by income range
+  geom_density_2d(mapping = aes(x = ProsperScore, y = BorrowerRate*10)) +
+  xlim(0, 11.5) +
+  ylim(0.5, 3.9) +
+  coord_trans(y = 'sqrt') +
+  labs(x = "Prosper Borrower Score (1-10)", y = "Borrower Interest Rate") +
+  ggtitle("Compare Prosper Score & Interest Rate by Income (Indicated by Density)") +
+  theme(plot.title = element_text(face="bold")) +
+  scale_fill_discrete(name="Income Range")
+  
+```
+
+The final angle of my analysis is how Prospers customer scoring correlates to the interest rate (broken down by salary range). I applied noise reduction techniques (jittering) and added a density layer to help me see where groups are concentrated at. This gives me a wealth of information:
+
+- We have a concentration of folks either showing $0 or "Not employed" at the upper spectrum of interest rates
+- We have a concentration of folks ranging from 50,000 to $100,000+ that are on the higher Prosper Score and lower interest rate.
+- Lower-tiered salary ranges have a lower Prosper score
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Source: http://www.cookbook-r.com/Graphs/Legends_(ggplot2)/
+
+loanData$Term = factor(loanData$Term, levels=c(12,36,60), ordered=T)
+
+ggplot(loanData, aes(x=Term, y=LoanOriginalAmount*.0001, fill=IncomeRange)) +
+  geom_histogram(stat="identity", alpha = 0.6) + theme_minimal() +
+  ggtitle("Loan Duration to Loan Amount Comparison by Income Ranges") +
+  theme(plot.title = element_text(face="bold")) +
+  labs(x = "Loan Duration Term (In Months)", y = "Original Loan Amount")
+```
+
+Having looked at the debt-to-income ratio and the borrowers' credit scores, I was curious about a couple of things:
+
+- Knowing we have a good correlation between credit score and interest rate, does that tend to give the borrowers more confidence to take on bigger / longer-term debt? 
+- How exactly do the loan terms lay down as far as the dollar amount loaned and a person's salary range?
+
+I think this graph does a nice job of giving me the answers. This graph shows a breakdown of loan terms and the amount on the loan... all by the different income ranges. I did have to multiply the loan amount value to get it to display correctly on the visual.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Source: http://www.sthda.com/english/wiki/ggplot2-box-plot-quick-start-guide-r-software-and-data-visualization
+
+qplot(x = IncomeRange, y = BorrowerRate, fill=LoanStatus,
+      xlab = 'Income Range',
+      ylab = 'Borrower Interest Rate (Decimal Value)',
+      data = subset(loanData), 
+      geom = 'boxplot') +
+  scale_x_discrete(limits = labelSalary) +
+#Setting the color palette to make it easier for me to literally see what's going on in the plot 'matrix'
+  scale_fill_brewer(palette = "Oranges") +
+  theme(legend.position="top", axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(0, 0.4) +
+  facet_wrap(~ LoanStatus, ncol=4) +
+  ggtitle("Income to Interest Rate Comparison by Loan Status") +
+  theme(plot.title = element_text(face="bold"))
+```
+
+I still had lingering questions about the income range. More specifically, what's the breakdown of loan status' look like based upon the salary range? My reasoning / thinking is that, depending on the combo of salary and interest rate, there's a lower likelyhood that higher wage earners get past due and/or default on their loan. I am surprised to see that the various salary ranges (generally speaking) do NOT appear to have a major bearing on whether or not the loan either defaulted or was charged off. 
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE, Plot_One, message=FALSE, warning=FALSE}
+#Source: http://www.sthda.com/english/wiki/ggplot2-box-plot-quick-start-guide-r-software-and-data-visualization
+
+qplot(x = IncomeRange, y = BorrowerRate, fill=LoanStatus,
+      xlab = 'Income Range',
+      ylab = 'Borrower Interest Rate (Decimal Value)',
+      data = subset(loanData), 
+      geom = 'boxplot') +
+  scale_x_discrete(limits = labelSalary) +
+#Setting the color palette to make it easier for me to literally see what's going on in the plot 'matrix'
+  scale_fill_brewer(palette = "Oranges") +
+  theme(legend.position="top", axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ylim(0, 0.4) +
+  facet_wrap(~ LoanStatus, ncol=4) +
+  ggtitle("Income to Interest Rate Comparison by Loan Status") +
+  theme(plot.title = element_text(face="bold"))
+```
+
+### Description One
+This was one of the most interesting visualizations for me. I took this from the viewpoint of an investor and asked myself:
+
+- How can I quickly size up what I may or may not be getting myself into by working with Prosper?
+
+With this chart, I can quickly assess the different income ranges across the spectrum of historical loan status' and also see how it compares to their respective interest rates. I use interest rates to gauge Prosper's "comfort level" with borrowers, so I can use that information to compare against the previously-mentioned variables. As an investor, I can see that I would want to focus my investments towards the $100,000+ salary range.
+
+### Plot Two
+```{r echo=FALSE, Plot_Two, message=FALSE, warning=FALSE}
+grid.arrange(p5,p6, nrow=1)
+```
+
+### Description Two
+Again, I like to look at this data from the eyes of the investor. As an investor, this comparison between deliquency information and credit scores (lower range) help me gauge where I'd like to specifically target and/or avoid borrowers to help hedge my bets against defaulting loans. With this type of analysis, I can see that I'd want to (at least in the beginning) avoid the 600 - 700 credit score range and likely target the 701+ credit score range to minimize risk to my investment(s).
+
+### Plot Three
+```{r echo=FALSE, Plot_Three, message=FALSE, warning=FALSE}
+#Source: http://www.cookbook-r.com/Graphs/Legends_(ggplot2)/
+ggplot(loanData, aes(x=Term, y=LoanOriginalAmount*.0001, fill=IncomeRange)) +
+  geom_histogram(stat="identity", alpha = 0.6) + theme_minimal() +
+  ggtitle("Loan Duration to Loan Amount Comparison by Income Ranges") +
+  theme(plot.title = element_text(face="bold")) +
+  labs(x = "Loan Duration Term (In Months)", y = "Original Loan Amount") +
+#Forcing the legend to be ordered properly below
+    scale_fill_discrete(name="Income Range", breaks=c("$0","$1-24,999","$25,000-49,999",
+                               "$50,000-74,999","$75,000-99,999","$100,000+",
+                               "Not displayed","Not employed"))
+```
+
+### Description Three
+
+Part of an investor's mindset in evaluating their next venture is determining and/or understanding the full picture before making a decision. Part of this is understanding the size of investment(s) they would be facing. As an investor, I can use this multivariant chart to quickly see the vast majority of incomes are (approximately) ranging in the 30-month to 50-month loan terms. Given my leaning-interest towards the 100,000+ salary range borrowers, I can also see (using this visual) that the majority of those folks are in the 30-month to 50-month range. Knowing this kind of information, along with the dollar amount range of approximately 50,000 - 60,000, helps me to determine things like, "how much / what percentage of their loan request would I feel comfortable funding?" or "knowing the approximate range of their interest rate, will I make enough Return On Investment (ROI) with the borrowers I'm wanting to target?"
+
+# Reflection
+
+This was an enjoyable project to work on. There were so many data points and possible packages I could have used to explore, size up, and make decisions upon my findings that it was difficult selecting a path forward. I chose to take a lot that was taught from this course and augment a few approaches (e.g. - custom labels, jittering, etc.) to come away from this with insightful information.
+
+Generally speaking, my findings were within my expectations given my past personal and professional experiences in the financial industry. One surprise to me was my finding in the dollar amount and quantity of delinquencies in the 600 - 700 credit score range. That highlighted a red flag for potential investors regarding certain loan requests to avoid and frankly was not expecting that credit range to have such a negative history with Prosper. 
+
+Some of the struggles I went through was selecting the right visual to tell the story that I saw in my mind. I spent significant time comparing different visuals, especially for multivariant plotting, to make sure the story being told was fair and accurate. Although the struggles existed, I found myself learning much more in building the visuals out and uncovering / confirming theories in my mind. So you could say it was bittersweet for me. One final element I struggled with was the initial review of the raw data. I tend to look at that first to get a feel for what I'm dealing with rather than just throwing charts up and seeing what sticks if you will. On a positive note, I thought throwing the bivariate and univariate plots together went fairly well and quickly. It afforded me more time to focus on understanding what the data was telling me and helped me to step my way through the exploration efforts needed for this project. By the time I was done with bivariate plotting, I knew where I wanted to combo data points to get a "bigger picture" angle of Prosper's data. 
